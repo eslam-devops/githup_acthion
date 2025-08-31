@@ -80,7 +80,7 @@
 ### **4.1 Workflow (سير العمل)**
 - **"الوصفة"** 📜 اللي بتقول لـ GitHub Actions يعمل إيه.
 - مثال:
-  ```yaml
+  ```bash
   name: CI
   on: [push]  # كل ما تحط كود جديد
   jobs:        # الشغل اللي هيتعمل
@@ -89,6 +89,8 @@
       steps:  # الخطوات
         - run: echo "Hello, World!"  # طباعة "Hello, World!"
   ```
+<img width="940" height="324" alt="image" src="https://github.com/user-attachments/assets/b07eb606-6dbd-4d2f-a5ed-4f808fae8cbc" />
+
 
 ---
 
