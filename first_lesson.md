@@ -258,3 +258,360 @@ GitHub Actions مش مجرد أداة **CI/CD** زي **Jenkins** أو **CircleCI
 
 **سؤال مهم:** عايز نطبق مثال معين؟ ولا في جزء محتاج توضيح أكتر؟ 🤔
 *(قول لي، وانا هاشرحه زي ما تكون بتشرح لاصدقائك على الكوشة!)* ☕😃
+
+**اهلا يا اسطورة!** 👋 اليوم هنتكلم عن **GitHub Actions** بطريقة سهلة ومسلية، زي ما بنشرب شاي ونضحك! ☕😄
+
+---
+
+## **1. تشغيل الـ Workflow يدوياً (Manual Triggers)**
+
+### **تشغيل الـ Workflow باستخدام GitHub UI**
+1. **إنشاء ملف الـ Workflow**:
+   - ملف اسمه `manual.yml` داخل `.github/workflows/`:
+     ```yaml
+     name: Manual Deploy
+     on:
+       workflow_dispatch:
+         inputs:
+           environment:
+             description: 'Choose environment'
+             required: true
+             default: 'staging'
+             type: choice
+             options:
+               - staging
+               - production
+     jobs:
+       deploy:
+         runs-on: ubuntu-latest
+         steps:
+           - run: echo "Deploying to ${{ github.event.inputs.environment }}"
+     ```
+
+2. **تشغيل الـ Workflow**:
+   - ادخل على **Actions** في الريبوزيتوري.
+   - اختر الـ **Workflow** (`Manual Deploy`).
+   - اضغط **Run workflow**.
+   - اختر **environment** (staging أو production).
+
+---
+
+## **2. تشغيل الـ Workflow باستخدام GitHub CLI**
+1. **تثبيت الـ CLI**:
+   - حمل **GitHub CLI** من [هنا](https://cli.github.com/).
+   - ثبت البرنامج على جهازك.
+
+2. **تشغيل الـ Workflow**:
+   ```bash
+   gh auth login  # تسجيل الدخول
+   gh workflow run manual.yml -f environment=production
+   ```
+
+---
+
+## **3. تشغيل الـ Workflow باستخدام API Call**
+1. **إنشاء Personal Access Token**:
+   - ادخل على **Settings** في حسابك على GitHub.
+   - اختر **Developer settings** → **Personal access tokens**.
+   - انشئ **token** جديد مع صلاحيات `repo` و `workflow`.
+
+2. **إرسال طلب API**:
+   ```bash
+   curl -X POST \
+   -H "Authorization: token YOUR_TOKEN" \
+   -H "Accept: application/vnd.github.v3+json" \
+   https://api.github.com/repos/OWNER/REPO/actions/workflows/WORKFLOW_ID/dispatches \
+   -d '{"ref":"main","inputs":{"environment":"production"}}'
+   ```
+
+---
+
+## **4. استخدام الـ Matrix Strategy**
+### **مثال: تشغيل الاختبارات على عدة إصدارات من Node.js ونظم تشغيل مختلفة**
+1. **إنشاء ملف الـ Workflow**:
+   ```yaml
+   name: Node.js CI
+   on: [push]
+   jobs:
+     test:
+       runs-on: ${{ matrix.os }}
+       strategy:
+         matrix:
+           os: [ubuntu-latest, windows-latest, macos-latest]
+           node-version: [14.x, 16.x, 18.x]
+       steps:
+         - uses: actions/checkout@v4
+         - uses: actions/setup-node@v4
+           with:
+             node-version: ${{ matrix.node-version }}
+         - run: npm install
+         - run: npm test
+   ```
+
+2. **تفسير الـ Matrix**:
+   - الـ **Matrix** بيشغل الـ **job** على كل تولفة من **os** و **node-version**.
+   - يعني هتشتغل 9 مرات (3 أنظمة تشغيل × 3 إصدارات من Node.js).
+
+---
+
+## **5. استخدام الـ Conditions في الـ Steps**
+### **مثال: تشغيل خطوة معينة فقط إذا كان الحدث هو `push`**
+1. **إنشاء ملف الـ Workflow**:
+   ```yaml
+   name: Conditional Step
+   on: [push, pull_request]
+   jobs:
+     test:
+       runs-on: ubuntu-latest
+       steps:
+         - if: github.event_name == 'push'
+           run: echo "This step runs only on push events"
+         - run: echo "This step runs on all events"
+   ```
+
+2. **تفسير الـ Condition**:
+   - الخطوة الأولى هتشتغل فقط إذا كان الحدث هو `push`.
+   - الخطوة الثانية هتشتغل في جميع الأحداث.
+
+---
+
+## **6. استخدام الـ Functions في الـ Expressions**
+### **مثال: استخدام الـ `contains` و `startsWith`**
+1. **إنشاء ملف الـ Workflow**:
+   ```yaml
+   name: Functions Example
+   on: [push]
+   jobs:
+     test:
+       runs-on: ubuntu-latest
+       steps:
+         - if: contains(github.event.commit.message, 'fix')
+           run: echo "This commit contains the word 'fix'"
+         - if: startsWith(github.event.ref, 'refs/tags/')
+           run: echo "This is a tag push"
+   ```
+
+2. **تفسير الـ Functions**:
+   - `contains`: بيفحص إذا كانت الرسالة تحتوي على كلمة معينة.
+   - `startsWith`: بيفحص إذا كان الرفرنس يبدا بكلمة معينة.
+
+---
+
+## **7. استخدام الـ Secrets**
+### **مثال: استخدام الـ `secrets` في الـ Workflow**
+1. **إنشاء الـ Secret**:
+   - ادخل على **Settings** في الريبوزيتوري.
+   - اختر **Secrets** → **Actions**.
+   - انشئ **secret** جديد اسمه `API_KEY` وقيمته `your_api_key_here`.
+
+2. **استخدام الـ Secret**:
+   ```yaml
+   name: Secrets Example
+   on: [push]
+   jobs:
+     test:
+       runs-on: ubuntu-latest
+       steps:
+         - run: echo "The API key is ${{ secrets.API_KEY }}"
+   ```
+
+---
+
+## **8. استخدام الـ Docker Containers**
+### **مثال: تشغيل الـ Workflow داخل الـ Docker Container**
+1. **إنشاء ملف الـ Workflow**:
+   ```yaml
+   name: Docker Example
+   on: [push]
+   jobs:
+     test:
+       runs-on: ubuntu-latest
+       container: node:18
+       steps:
+         - run: node --version
+   ```
+
+2. **تفسير الـ Container**:
+   - الـ **job** هيتشغل داخل **Docker container** باستخدام صورة `node:18`.
+
+---
+
+## **9. استخدام الـ Services**
+### **مثال: تشغيل قاعدة بيانات Redis داخل الـ Workflow**
+1. **إنشاء ملف الـ Workflow**:
+   ```yaml
+   name: Services Example
+   on: [push]
+   jobs:
+     test:
+       runs-on: ubuntu-latest
+       services:
+         redis:
+           image: redis
+           ports:
+             - 6379:6379
+       steps:
+         - run: redis-cli ping
+   ```
+
+2. **تفسير الـ Service**:
+   - الـ **job** هيتصل بقاعدة بيانات **Redis** أثناء التشغيل.
+
+---
+
+## **10. ملخص النقاط الرئيسية**
+
+
+| النقطة | الشرح |
+|--------|-------|
+| **Manual Triggers** | تشغيل الـ Workflow يدوياً باستخدام GitHub UI أو CLI أو API. |
+| **Matrix Strategy** | تشغيل الـ Workflow على عدة تولفات من المتغيرات. |
+| **Conditions** | تشغيل خطوات معينة بناءً على شروط. |
+| **Functions** | استخدام دوال مثل `contains` و `startsWith`. |
+| **Secrets** | استخدام البيانات الحساسة بشكل آمن. |
+| **Docker Containers** | تشغيل الـ Workflow داخل حاويات Docker. |
+| **Services** | تشغيل خدمات إضافية مثل قواعد البيانات. |
+
+---
+
+**سؤال مهم:** عايز نطبق مثال معين؟ ولا في جزء محتاج توضيح أكتر؟ 🤔
+*(قول لي، وانا هاشرحه زي ما تكون بتشرح لاصدقائك على الكوشة!)* ☕😃
+
+
+**اهلا يا اسطورة!** 👋 اليوم هنتكلم عن **GitHub Actions** بطريقة سهلة ومسلية، زي ما بنشرب شاي ونضحك! ☕😄
+
+---
+
+## **1. استخدام الـ Workflow Commands**
+
+### **أمر `warning` و `error`**
+- **أمر `warning`**: يستخدم لإظهار تحذير في سجلات الـ Workflow.
+  ```yaml
+  - name: Show warning
+    run: echo "::warning::Deprecated function found!"
+  ```
+
+- **أمر `error`**: يستخدم لإظهار خطأ في سجلات الـ Workflow.
+  ```yaml
+  - name: Show error
+    run: echo "::error::Missing required file!"
+  ```
+
+### **مثال عملي**
+```yaml
+name: Workflow Commands Example
+on: [push]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for deprecated function
+        run: |
+          echo "::warning::Deprecated function 'oldFunction' found!"
+          echo "::error::Missing 'README.md' file!"
+```
+
+---
+
+## **2. استخدام الـ Environment Variables**
+
+### **مشاركة المتغيرات بين الخطوات**
+- يمكن مشاركة المتغيرات بين الخطوات باستخدام `GITHUB_ENV`.
+- مثال:
+  ```yaml
+  - name: Set environment variable
+    run: echo "API_KEY=12345" >> $GITHUB_ENV
+
+  - name: Use environment variable
+    run: echo "The API key is ${{ env.API_KEY }}"
+  ```
+
+---
+
+## **3. استخدام الـ Masking**
+
+### **إخفاء المعلومات الحساسة**
+- يمكن إخفاء المعلومات الحساسة مثل `API keys` باستخدام الأمر `::add-mask::`.
+- مثال:
+  ```yaml
+  - name: Mask sensitive data
+    run: echo "::add-mask::12345"
+  ```
+
+### **مثال عملي**
+```yaml
+name: Masking Example
+on: [push]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set and mask API key
+        run: |
+          echo "API_KEY=12345" >> $GITHUB_ENV
+          echo "::add-mask::$API_KEY"
+      - name: Use masked API key
+        run: echo "The masked API key is ${{ env.API_KEY }}"
+```
+
+---
+
+## **4. استخدام الـ Debug Messages**
+
+### **إظهار رسائل تصحيح الأخطاء**
+- يمكن استخدام الأمر `::debug::` لإظهار رسائل تصحيح الأخطاء.
+- مثال:
+  ```yaml
+  - name: Debug message
+    run: echo "::debug::This is a debug message!"
+  ```
+
+---
+
+## **5. استخدام الـ Grouping**
+
+### **تجميع الخطوات**
+- يمكن تجميع الخطوات باستخدام الأمر `::group::` و `::endgroup::`.
+- مثال:
+  ```yaml
+  - name: Grouped steps
+    run: |
+      echo "::group::Installing dependencies"
+      npm install
+      echo "::endgroup::"
+  ```
+
+---
+
+## **6. استخدام الـ File Commands**
+
+### **إخفاء محتويات الملفات الحساسة**
+- يمكن إخفاء محتويات الملفات الحساسة باستخدام الأمر `::add-mask::` مع قراءة الملف.
+- مثال:
+  ```yaml
+  - name: Mask file contents
+    run: |
+      API_KEY=$(cat api_key.txt)
+      echo "::add-mask::$API_KEY"
+  ```
+
+---
+
+## **7. ملخص النقاط الرئيسية**
+
+
+| الأمر | الاستخدام | مثال |
+|-------|------------|-------|
+| `::warning::` | إظهار تحذير | `echo "::warning::Deprecated function found!"` |
+| `::error::` | إظهار خطأ | `echo "::error::Missing required file!"` |
+| `GITHUB_ENV` | مشاركة المتغيرات | `echo "API_KEY=12345" >> $GITHUB_ENV` |
+| `::add-mask::` | إخفاء المعلومات الحساسة | `echo "::add-mask::12345"` |
+| `::debug::` | إظهار رسائل تصحيح الأخطاء | `echo "::debug::This is a debug message!"` |
+| `::group::` و `::endgroup::` | تجميع الخطوات | `echo "::group::Installing dependencies"` |
+
+---
+
+**سؤال مهم:** عايز نطبق مثال معين؟ ولا في جزء محتاج توضيح أكتر؟ 🤔
+*(قول لي، وانا هاشرحه زي ما تكون بتشرح لاصدقائك على الكوشة!)* ☕😃
